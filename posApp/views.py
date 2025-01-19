@@ -1,8 +1,9 @@
 from pickle import FALSE
 from django.shortcuts import redirect, render
 from django.http import HttpResponse
-from flask import jsonify
+from django.http import JsonResponse
 from posApp.models import Category, Products, Sales, salesItems
+from django.contrib.auth.models import User 
 from django.db.models import Count, Sum
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -10,6 +11,18 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 import json, sys
 from datetime import date, datetime
+from django.contrib.auth.hashers import make_password
+from .models import UserProfile
+
+
+#navigation
+def user_profile(request):
+    if request.user.is_authenticated:
+        try:
+            return {'profile': UserProfile.objects.get(user=request.user)}
+        except UserProfile.DoesNotExist:
+            return {'profile': None}
+    return {}
 
 # Login
 def login_user(request):
@@ -17,13 +30,13 @@ def login_user(request):
     resp = {"status": 'failed', 'msg': ''}
     username = ''
     password = ''
-    
+
     if request.POST:
         username = request.POST['username']
         password = request.POST['password']
 
         user = authenticate(username=username, password=password)
-        
+
         if user is not None:
             if user.is_active:
                 login(request, user)
@@ -37,7 +50,7 @@ def login_user(request):
                            "1- Mot de passe ou nom utilisateur incorrect.\n"
                            "2- Abonnement non renouvelé.\n"
                            "Contactez le support.")
-    
+
     return HttpResponse(json.dumps(resp), content_type='application/json')
 
 #Logout
@@ -101,7 +114,7 @@ def manage_category(request):
             id= data['id']
         if id.isnumeric() and int(id) > 0:
             category = Category.objects.filter(id=id).first()
-    
+
     context = {
         'category' : category
     }
@@ -119,7 +132,7 @@ def save_category(request):
             save_category = Category(name=data['name'], description = data['description'],status = data['status'],id_user = current_user)
             save_category.save()
         resp['status'] = 'success'
-        messages.success(request, 'Category Successfully saved.')
+        messages.success(request, 'Catégorie enregistrée avec succès.')
     except:
         resp['status'] = 'failed'
     return HttpResponse(json.dumps(resp), content_type="application/json")
@@ -131,7 +144,7 @@ def delete_category(request):
     try:
         Category.objects.filter(id = data['id']).delete()
         resp['status'] = 'success'
-        messages.success(request, 'Category Successfully deleted.')
+        messages.success(request, 'Catégorie supprimée avec succès.')
     except:
         resp['status'] = 'failed'
     return HttpResponse(json.dumps(resp), content_type="application/json")
@@ -145,6 +158,7 @@ def products(request):
         'products':product_list,
     }
     return render(request, 'posApp/products.html',context)
+
 @login_required
 def manage_products(request):
     product = {}
@@ -156,7 +170,7 @@ def manage_products(request):
             id= data['id']
         if id.isnumeric() and int(id) > 0:
             product = Products.objects.filter(id=id).first()
-    
+
     context = {
         'product' : product,
         'categories' : categories
@@ -170,30 +184,56 @@ def test(request):
     return render(request, 'posApp/test.html',context)
 @login_required
 def save_product(request):
-    data =  request.POST
-    resp = {'status':'failed'}
-    id= ''
+    data = request.POST
+    resp = {'status': 'failed'}
+    id = ''
+
     if 'id' in data:
         id = data['id']
-    if id.isnumeric() and int(id) > 0:
-        check = Products.objects.exclude(id=id).filter(code=data['code']).all()
-    else:
-        check = Products.objects.filter(code=data['code']).all()
-    if len(check) > 0 :
-        resp['msg'] = "Product Code Already Exists in the database"
-    else:
-        category = Category.objects.filter(id = data['category_id']).first()
-        try:
-            current_user = request.user.id
-            if (data['id']).isnumeric() and int(data['id']) > 0 :
-                save_product = Products.objects.filter(id = data['id']).update(code=data['code'], category_id=category, name=data['name'], description = data['description'], price = float(data['price']),quantity = data['quantity'],status = data['status'],id_user = current_user)
-            else:
-                save_product = Products(code=data['code'], category_id=category, name=data['name'], description = data['description'], price = float(data['price']),quantity = data['quantity'],status = data['status'],id_user = current_user)
-                save_product.save()
-            resp['status'] = 'success'
-            messages.success(request, 'Product Successfully saved.')
-        except:
-            resp['status'] = 'failed'
+
+    category = Category.objects.filter(id=data['category_id']).first()
+    current_user = request.user.id
+
+    try:
+        if id.isnumeric() and int(id) > 0:
+            # Mise à jour du produit existant
+            product = Products.objects.get(id=id)
+            product.category_id = category
+            product.name = data['name']
+            product.description = data['description']
+            product.price = float(data['price'])
+            product.quantity = data['quantity']
+            product.status = data['status']
+            product.id_user = current_user
+
+            # Générer le nouveau code basé sur l'ID de l'utilisateur et l'ID du produit
+            new_code = f'{current_user}-prod-{product.id}'
+            product.code = new_code  # Mettre à jour le code
+            product.save()  # Sauvegarder le produit
+        else:
+            # Création d'un nouveau produit
+            new_product = Products(
+                code='',  # Laisser vide pour générer plus tard
+                category_id=category,
+                name=data['name'],
+                description=data['description'],
+                price=float(data['price']),
+                quantity=data['quantity'],
+                status=data['status'],
+                id_user=current_user
+            )
+            new_product.save()  # Sauvegarder le produit
+            # Générer le code basé sur l'ID de l'utilisateur et l'ID du produit
+            new_code = f'{current_user}-prod-{new_product.id}'
+            new_product.code = new_code  # Mettre à jour le code du produit
+            new_product.save()  # Sauvegarder le produit avec le code mis à jour
+
+        resp['status'] = 'success'
+        messages.success(request, 'Product Successfully saved.')
+    except Exception as e:
+        resp['status'] = 'failed'
+        resp['msg'] = str(e)  # Inclure le message d'erreur pour le débogage
+
     return HttpResponse(json.dumps(resp), content_type="application/json")
 
 @login_required
@@ -220,6 +260,114 @@ def pos(request):
     }
     # return HttpResponse('')
     return render(request, 'posApp/pos.html',context)
+
+## User
+
+@login_required
+def users(request):
+    # Précharge les profils liés
+    user_list = User.objects.select_related('profile').all()
+
+    context = {
+        'page_title': 'User List',
+        'users': user_list,
+    }
+    return render(request, 'posApp/user.html', context)
+
+@login_required
+def manage_users(request):
+    user = {}
+    # Récupérer tous les utilisateurs sans filtre
+    users = User.objects.all()  # Cette ligne récupère tous les utilisateurs de la base de données
+    
+    if request.method == 'GET':
+        data = request.GET
+        user_id = ''
+        
+        if 'id' in data:
+            user_id = data['id']
+        
+        if user_id.isnumeric() and int(user_id) > 0:
+            user = User.objects.filter(id=user_id).first()
+    
+    context = {
+        'user': user,
+        'users': users,
+    }
+    
+    return render(request, 'posApp/manage_user.html', context)
+
+@login_required
+def save_user(request):
+    data = request.POST
+    resp = {'status':'failed'}
+    id = ''
+    if 'id' in data :
+        id=data['id']
+    
+    try:
+        
+        if id.isnumeric() and int(id) > 0:
+            # Mise à jour de l'utilisateur
+            user = User.objects.get(id=id)
+
+            # Mettre à jour uniquement les champs modifiés
+            if 'first_name' in data:
+                user.first_name = data['first_name']  # Mettre à jour uniquement si fourni
+            if 'last_name' in data:
+                user.last_name = data['last_name']
+            if 'username' in data:
+                user.username = data['username']
+            if 'email' in data:
+                user.email = data['email']
+
+            # Mise à jour du mot de passe uniquement si un nouveau mot de passe est fourni
+            if 'password' in data and data['password']:
+                user.password = make_password(data['password'])
+           # Gestion de user_type via le profil
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            if 'user_type' in data:
+                user_type = data['user_type']
+                if user_type in ['admin', 'binome', 'employe']:
+                    profile.user_type = user_type
+                    profile.save()  # Sauvegarder le profil si mis à jour
+
+            # Sauvegarder les modifications
+            user.save()
+            print(f"Après sauvegarde - ID de l'utilisateur : {user.id}")
+            print(f"Nom : {user.first_name}, Prénom : {user.last_name}, Email : {user.email},Type : {profile.user_type}")
+        else:
+            new_user = User(
+                first_name = data['first_name'],
+                last_name=data['last_name'],   # Nom de famille de l'utilisateur
+                username=data['username'],  # Nom d'utilisateur
+                email=data['email'],  # Adresse email
+                password=make_password(data['password']),  # Hachage du mot de passe
+             )
+            new_user.save()
+            # Créer un profil utilisateur
+            new_profile = UserProfile.objects.create(user=new_user, user_type=data['user_type'])
+            
+        resp['status'] = 'success'
+        messages.success(request, 'Utilisateur enregistre avec succes')
+    except Exception as e:
+        resp['status'] = 'failed'
+        resp['msg'] = str(e)  # Inclure le message d'erreur pour le débogage
+
+    return HttpResponse(json.dumps(resp), content_type="application/json")
+
+@login_required
+def delete_user(request):
+    data =  request.POST
+    resp = {'status':''}
+    try:
+        User.objects.filter(id = data['id']).delete()
+        resp['status'] = 'success'
+        messages.success(request, "l'utilisateur a ete supprime avec succes")
+    except:
+        resp['status'] = 'failed'
+    return HttpResponse(json.dumps(resp), content_type="application/json")
+
 
 @login_required
 def checkout_modal(request):
@@ -250,11 +398,11 @@ def save_pos(request):
         sale_id = Sales.objects.last().pk
         i = 0
         for prod in data.getlist('product_id[]'):
-            product_id = prod 
+            product_id = prod
             sale = Sales.objects.filter(id=sale_id).first()
             product = Products.objects.filter(id=product_id).first()
-            qty = data.getlist('qty[]')[i] 
-            price = data.getlist('price[]')[i] 
+            qty = data.getlist('qty[]')[i]
+            price = data.getlist('price[]')[i]
             total = float(qty) * float(price)
             print({'sale_id' : sale, 'product_id' : product, 'qty' : qty, 'price' : price, 'total' : total})
             if product.quantity >= int(qty):
@@ -263,7 +411,7 @@ def save_pos(request):
             else:
                 resp['msg'] = f"Stock insuffisant pour le produit {product.name}"
                 return HttpResponse(json.dumps(resp),content_type="application/json")
-            
+
             salesItems(sale_id = sale, product_id = product, qty = qty, price = price, total = total).save()
             i += int(1)
         resp['status'] = 'success'

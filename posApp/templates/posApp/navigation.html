@@ -31,10 +31,19 @@
                 </div>
                 <div class="mdc-list-item mdc-drawer-item">
                     <a class="mdc-drawer-link" href="{% url 'sales-page' %}">
-                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">receipt</i> Historique des ventes
+                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">receipt</i>
+                        Historique des ventes
                     </a>
                 </div>
-            </nav>
+                {% if profile.user_type == 'admin' or profile.user_type == 'binome' %}
+                <div class="mdc-list-item mdc-drawer-item">
+                    <a class="mdc-drawer-link" href="{% url 'user-page' %}">
+                        <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">receipt</i>
+                        Ajout Employe
+                    </a>
+                </div>
+                {% endif %}
+                
         </div>
     </div>
 </aside>

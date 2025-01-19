@@ -21,7 +21,7 @@
                                     <option value="{{ product.pk }}" data-quantity="{{ product.quantity }}">{{ product }}</option>
                                 {% endfor %}
                             </select>
-                            
+
                         </div>
                     </div>
                     <div class="col-lg-3 col-md-5 col-md-12">
@@ -64,24 +64,24 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="col-4 bg-gradient bg-dark bg-opacity-50 border h-100">
+                    <div class="col-4 bg-gradient bg-dark bg-opacity-50 border h-100 mb-4">
                         <div class="col-12 py-4 px-2">
                             <dl>
                                 <dt class="h4 fw-bold text-light">Sous Total</dt>
-                                <dd class="text-end py-1 px-2 rounded-0 bg-light">
+                                <dd class="text-end py-1 px-2 rounded-0 bg-light d-none">
                                     <input type="hidden" name="sub_total" value="0">
                                     <span class="h3 fw-bold" id="sub_total">0.00</span>
                                 </dd>
-                                <dt class="h4 fw-bold text-light">Tax Inclusive (%)</dt>
+                                <dt class="h4 fw-bold text-light">Taxe comprise (%)</dt>
                                 <dd>
                                     <input type="number" class="form-control form-control-lg rounded-0 text-end" step="any" min="0" max="100" name="tax" value="0">
                                 </dd>
-                                <dt class="h4 fw-bold text-light">Tax Amount</dt>
+                                <dt class="h4 fw-bold text-light">Montant de la taxe</dt>
                                 <dd class="text-end py-1 px-2 rounded-0 bg-light">
                                     <input type="hidden" name="tax_amount" value="0">
                                     <span class="h3 fw-bold" id="tax_amount">0.00</span>
                                 </dd>
-                                <dt class="h4 fw-bold text-light">Grand Total</dt>
+                                <dt class="h4 fw-bold text-light">Total général</dt>
                                 <dd class="text-end py-1 px-2 rounded-0 bg-light">
                                     <input type="hidden" name="grand_total" value="0">
                                     <input type="hidden" name="tendered_amount" value="0">
@@ -96,9 +96,10 @@
                 </div>
             </fieldset>
             <div class="row">
-                <div class="col-md-12 text-end">
-                    <button class="btn btn-primary btn-sm rounded-0" type="button" id="check_out"><i class="mdi mdi-save"></i> Valider</button>
-                </div>
+               <div class="col-md-12 text-end">
+                <button class="btn btn-primary btn-sm rounded-0 mb-3" type="button" id="check_out"><i class="mdi mdi-save"></i> Valider</button>
+               </div>
+
             </div>
         </form>
     </div>
@@ -189,7 +190,7 @@
                 tr.find('[name="qty[]"]').val(qty)
                 tr.find('[name="product_id[]"]').val(id)
                 tr.find('[name="price[]"]').val(data.price)
-                tr.find('.product_name').val(data.name)
+                tr.find('.product_name').text(data.name)
                 tr.find('.product_quantity').text(data.quantity)
                 tr.find('.product_price').text(parseFloat(data.price).toLocaleString('en-US'))
                 tr.find('.product_total').text(parseFloat(data.price * qty).toLocaleString('en-US'))
@@ -219,7 +220,7 @@
                 alert("Add atleast 1 product first!")
                 return false;
             }
-            uni_modal("Checkout", "{% url 'checkout-modal' %}?grand_total=" + $('[name="grand_total"]').val())
+            uni_modal("Caisse", "{% url 'checkout-modal' %}?grand_total=" + $('[name="grand_total"]').val())
         })
         $('#pos-form').submit(function(e) {
             e.preventDefault();
